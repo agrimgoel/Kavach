@@ -2,303 +2,536 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kavach - Instant Emergency Service Finder & Alert System</title>
-    
-    <!-- Google Fonts -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kavach – Emergency SafeLine</title>
+    <meta name="description" content="Kavach Emergency SafeLine – Instant SOS alerts, live GPS tracking, and one-touch emergency dispatch.">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- FontAwesome for Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Leaflet CSS for Maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app-container">
-        
-        <!-- ==================== REGISTRATION / LOGIN SECTION ==================== -->
-        <section id="login-screen" class="screen active">
-            <div class="glass-card login-card">
-                <div class="logo-container">
-                    <div class="shield-logo">
-                        <i class="fa-solid fa-shield-halved pulse-glow"></i>
-                    </div>
-                    <h1>KAVACH</h1>
-                    <p class="subtitle">Emergency Service Finder & Alert System</p>
+<div id="app-container">
+
+    <!-- ========== SCREEN 1: LOGIN ========== -->
+    <section id="login-screen" class="screen active">
+        <div class="login-content">
+            <div class="logo-area">
+                <div class="shield-icon-box">
+                    <i class="fa-solid fa-shield-halved"></i>
                 </div>
-                
-                <form id="login-form">
-                    <div class="form-section-title">Your Details</div>
-                    <div class="input-group">
-                        <i class="fa-solid fa-user"></i>
-                        <input type="text" id="user-name" placeholder="Full Name" required autocomplete="name">
-                    </div>
-                    <div class="input-group">
-                        <i class="fa-solid fa-phone"></i>
-                        <input type="tel" id="user-phone" placeholder="Mobile Number (10 digits)" required pattern="[0-9]{10}" autocomplete="tel">
-                    </div>
-                    
-                    <div class="form-section-title">Emergency Contact (Loved One)</div>
-                    <div class="input-group">
-                        <i class="fa-solid fa-user-shield"></i>
-                        <input type="text" id="emergency-name" placeholder="Contact Person Name (e.g. Father)" required>
-                    </div>
-                    <div class="input-group">
-                        <i class="fa-solid fa-mobile-screen-button"></i>
-                        <input type="tel" id="emergency-phone" placeholder="Contact Mobile Number (10 digits)" required pattern="[0-9]{10}">
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary btn-block">
-                        <span>Initialize Kavach</span>
-                        <i class="fa-solid fa-arrow-right"></i>
-                    </button>
-                </form>
-                
-                <div class="security-note">
-                    <i class="fa-solid fa-lock"></i>
-                    Your location and credentials are stored securely on your device and logged to your linked Google Sheet database.
-                </div>
+                <h1 class="brand-name">KAVACH</h1>
+                <p class="brand-sub">Secure Entry Protocol</p>
             </div>
-        </section>
 
-        <!-- ==================== MAIN DASHBOARD SCREEN ==================== -->
-        <section id="dashboard-screen" class="screen">
-            <!-- Header -->
-            <header class="dashboard-header">
-                <div class="header-left">
-                    <div class="avatar">
-                        <i class="fa-solid fa-user-ninja"></i>
-                    </div>
-                    <div>
-                        <h3 id="display-user-name">Welcome</h3>
-                        <p class="status-indicator"><span class="pulse-dot"></span> Kavach Active & Monitoring</p>
-                    </div>
-                </div>
-                <div class="header-right">
-                    <button id="settings-trigger" class="icon-btn" title="Settings">
-                        <i class="fa-solid fa-gear"></i>
-                    </button>
-                </div>
-            </header>
-
-            <!-- Main Content Area (Scrollable) -->
-            <div class="dashboard-scroll-area">
-                
-                <!-- Quick Info banner for loved one -->
-                <div class="guardian-banner">
-                    <div class="guardian-info">
-                        <i class="fa-solid fa-shield-heart guardian-icon"></i>
-                        <div>
-                            <span class="label">Guardian Contact:</span>
-                            <span class="value" id="display-guardian-info">Father (Not set)</span>
-                        </div>
-                    </div>
-                    <span class="gps-status-badge" id="gps-accuracy-badge">
-                        <i class="fa-solid fa-location-crosshairs"></i> GPS Off
-                    </span>
+            <form id="login-form" class="login-form-card">
+                <label class="field-label">Registered Mobile Number</label>
+                <div class="input-row phone-row">
+                    <span class="country-prefix">+91</span>
+                    <input type="tel" id="user-phone" placeholder="98765 43210" required autocomplete="tel" maxlength="10" pattern="[6-9][0-9]{9}">
                 </div>
 
-                <!-- Emergency Action Title -->
-                <div class="section-header">
-                    <h2>QUICK HELP TRAGETS</h2>
-                    <p>Tap to call and instantly send your live location coordinates to your guardian.</p>
+                <label class="field-label" style="margin-top:14px;">Your Name</label>
+                <div class="input-row">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="user-name" placeholder="Full Name" required autocomplete="name">
                 </div>
 
-                <!-- Big Quick Action Buttons Grid -->
-                <div class="emergency-grid">
-                    <!-- POLICE -->
-                    <button class="emergency-btn police" data-service="Police" data-phone="112">
-                        <div class="btn-icon">
-                            <i class="fa-solid fa-building-shield"></i>
-                        </div>
-                        <div class="btn-info">
-                            <span class="service-name">POLICE</span>
-                            <span class="helpline-no">Call 112 / 100</span>
-                        </div>
-                    </button>
+                <button type="submit" class="btn-red btn-full">
+                    Get Started <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
 
-                    <!-- AMBULANCE -->
-                    <button class="emergency-btn ambulance" data-service="Ambulance" data-phone="108">
-                        <div class="btn-icon">
-                            <i class="fa-solid fa-truck-medical"></i>
-                        </div>
-                        <div class="btn-info">
-                            <span class="service-name">AMBULANCE</span>
-                            <span class="helpline-no">Call 108 / 102</span>
-                        </div>
-                    </button>
-
-                    <!-- FIRE BRIGADE -->
-                    <button class="emergency-btn fire" data-service="Fire Brigade" data-phone="101">
-                        <div class="btn-icon">
-                            <i class="fa-solid fa-fire-extinguisher"></i>
-                        </div>
-                        <div class="btn-info">
-                            <span class="service-name">FIRE BRIGADE</span>
-                            <span class="helpline-no">Call 101</span>
-                        </div>
-                    </button>
-
-                    <!-- WOMEN HELPLINE -->
-                    <button class="emergency-btn women" data-service="Women Helpline" data-phone="1091">
-                        <div class="btn-icon">
-                            <i class="fa-solid fa-person-dress-burst"></i>
-                        </div>
-                        <div class="btn-info">
-                            <span class="service-name">WOMEN HELP</span>
-                            <span class="helpline-no">Call 1091</span>
-                        </div>
-                    </button>
-                </div>
-
-                <!-- Map Section -->
-                <div class="section-header">
-                    <h2>NEAREST HELPING SERVICES</h2>
-                    <p>Live tracking of nearest resources relative to your GPS position.</p>
-                </div>
-
-                <!-- Map Filters -->
-                <div class="map-filters">
-                    <button class="filter-btn active" data-type="all">
-                        <i class="fa-solid fa-layer-group"></i> All
-                    </button>
-                    <button class="filter-btn" data-type="police">
-                        <i class="fa-solid fa-building-shield"></i> Police Stations
-                    </button>
-                    <button class="filter-btn" data-type="hospital">
-                        <i class="fa-solid fa-hospital"></i> Hospitals
-                    </button>
-                    <button class="filter-btn" data-type="fire">
-                        <i class="fa-solid fa-fire"></i> Fire Stations
-                    </button>
-                </div>
-
-                <!-- Leaflet Map Container -->
-                <div class="map-wrapper">
-                    <div id="map"></div>
-                    <button id="recenter-btn" class="map-action-btn" title="Recenter Location">
-                        <i class="fa-solid fa-crosshairs"></i>
-                    </button>
-                </div>
-
-                <!-- Nearest Services List -->
-                <div class="nearest-list-container">
-                    <h3>Nearest Facilities Found</h3>
-                    <div id="nearest-facilities-list" class="facilities-list">
-                        <p class="placeholder-text">Searching GPS location to find nearest resources...</p>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- ==================== DIALING / ALERT MODAL ==================== -->
-        <div id="alert-modal" class="modal">
-            <div class="modal-content alert-content">
-                <div class="alert-pulse-icon">
-                    <i class="fa-solid fa-phone-volume"></i>
-                </div>
-                <h2 id="alert-service-title">Contacting Police</h2>
-                <p class="alert-desc">Initiating emergency call and registering logs...</p>
-                
-                <div class="alert-log-status">
-                    <div class="status-row">
-                        <span class="status-dot success"></span>
-                        <span>GPS Coordinates locked</span>
-                    </div>
-                    <div class="status-row">
-                        <span class="status-dot" id="db-status-dot"></span>
-                        <span id="db-status-text">Saving to Google Sheets database...</span>
-                    </div>
-                </div>
-
-                <div class="sms-suggestion-card">
-                    <div class="sms-header">
-                        <i class="fa-solid fa-comment-sms"></i>
-                        <span>Send Location Message to Guardian</span>
-                    </div>
-                    <p class="sms-preview" id="sms-preview-text">Loading message preview...</p>
-                    <div class="sms-actions">
-                        <a id="sms-btn" href="#" class="btn btn-sms">
-                            <i class="fa-solid fa-message"></i> Send via SMS
-                        </a>
-                        <a id="whatsapp-btn" href="#" class="btn btn-whatsapp" target="_blank">
-                            <i class="fa-brands fa-whatsapp"></i> Send via WhatsApp
-                        </a>
-                    </div>
-                </div>
-
-                <div class="dial-actions">
-                    <a id="direct-dial-link" href="#" class="btn btn-danger btn-block">
-                        <i class="fa-solid fa-phone"></i> Open Dialpad (Call Now)
-                    </a>
-                    <button id="close-alert-btn" class="btn btn-secondary btn-block">
-                        Close & Go Back
-                    </button>
-                </div>
-            </div>
+            <p class="login-footer">
+                <i class="fa-solid fa-lock"></i>
+                Your data is encrypted and stored locally on this device.
+            </p>
         </div>
+    </section>
 
-        <!-- ==================== SETTINGS MODAL ==================== -->
-        <div id="settings-modal" class="modal">
-            <div class="modal-content glass-card">
-                <div class="modal-header">
-                    <h2>Kavach Settings</h2>
-                    <button class="close-modal" id="close-settings-btn">&times;</button>
+    <!-- ========== SCREEN 2: CONTACT SETUP ========== -->
+    <section id="contact-setup-screen" class="screen">
+        <div class="setup-content">
+            <div class="setup-icon-box">
+                <i class="fa-solid fa-shield-halved setup-shield"></i>
+                <i class="fa-solid fa-person setup-person"></i>
+            </div>
+            <h2 class="setup-title">Who should we alert?</h2>
+            <p class="setup-desc">Add a mandatory emergency contact. This person will be notified immediately if you trigger an SOS.</p>
+
+            <form id="contact-form" class="setup-form-card">
+                <label class="field-label">Contact Name</label>
+                <div class="input-row">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="emergency-name" placeholder="e.g., Father, Partner" required>
                 </div>
-                <div class="modal-body">
-                    <form id="settings-form">
-                        <div class="form-section-title">Database Integration (Google Sheets)</div>
-                        <p class="settings-help">Deploy the Apps Script on your Sheet and paste the Web App URL below to sync registrations and logs in real-time.</p>
-                        
-                        <div class="input-group">
-                            <i class="fa-solid fa-link"></i>
-                            <input type="url" id="settings-db-url" placeholder="Google Apps Script Web App URL">
-                        </div>
 
-                        <div class="form-section-title">Edit User Details</div>
-                        <div class="input-group">
+                <label class="field-label" style="margin-top:16px;">Mobile Number</label>
+                <div class="input-row phone-row">
+                    <span class="country-prefix">+91</span>
+                    <input type="tel" id="emergency-phone" placeholder="98765 43210" required maxlength="10" pattern="[6-9][0-9]{9}">
+                </div>
+
+                <div class="info-box">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <p>This is a critical setup step. This person will receive your SOS location alert immediately.</p>
+                </div>
+
+                <button type="submit" class="btn-red btn-full">
+                    Save &amp; Continue <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- ========== SCREEN 3: DASHBOARD ========== -->
+    <section id="dashboard-screen" class="screen">
+        <header class="dash-header">
+            <div class="dash-header-left">
+                <div class="kavach-logo-mini">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="dash-brand-wrap">
+                    <div class="dash-brand-top">
+                        <span class="dash-brand-name">KAVACH</span>
+                        <span class="dash-brand-ver">V 2.4</span>
+                    </div>
+                    <span class="dash-sub">Emergency SafeLine</span>
+                </div>
+            </div>
+            <div class="dash-header-right">
+                <div class="rescue-badge">
+                    <span class="rescue-dot"></span>
+                    <span>RESCUE<br>READY</span>
+                </div>
+                <button class="user-avatar-btn" id="settings-trigger">
+                    <i class="fa-solid fa-user-shield"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tab panels inside scroll area -->
+        <div class="dash-scroll" id="dash-scroll">
+
+            <!-- ===== TAB: SOS GUARD (default) ===== -->
+            <div class="tab-panel active" id="tab-sos">
+
+                <!-- SOS Card -->
+                <div class="sos-card">
+                    <div class="sos-top-row">
+                        <div class="sos-label-badge lifeline-badge">
+                            <i class="fa-solid fa-diamond lifeline-icon"></i>
+                            <span>IMMEDIATE<br>LIFELINE</span>
+                        </div>
+                        <div class="sos-label-badge siren-badge">
+                            <i class="fa-solid fa-volume-high siren-icon"></i>
+                            <div>
+                                <div class="siren-title">Siren: 110dB</div>
+                                <div class="siren-sub">Ready</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sos-button-wrap">
+                        <div class="sos-outer-ring">
+                            <div class="sos-inner-ring">
+                                <button class="sos-btn" id="sos-btn">
+                                    <span class="sos-text">SOS</span>
+                                    <span class="sos-sub-text">ALERT ALL</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sos-hold-hint">
+                        <i class="fa-solid fa-hand-pointer"></i>
+                        <strong>PRESS &amp; HOLD FOR 3 SEC</strong>
+                    </div>
+                    <p class="sos-desc">Triggers sirens, GPS coordinates &amp; camera snapshots</p>
+                </div>
+
+                <!-- One-Touch Dispatch -->
+                <div class="section-block">
+                    <div class="section-row-header">
+                        <div class="section-title-wrap">
+                            <i class="fa-solid fa-phone-volume dispatch-hdr-icon"></i>
+                            <span class="section-title">ONE-TOUCH DISPATCH</span>
+                        </div>
+                        <span class="section-subtitle">Toll-Free Instant Direct Call</span>
+                    </div>
+                    <div class="dispatch-grid">
+                        <button class="dispatch-card" data-service="Police" data-phone="100">
+                            <div class="dispatch-top">
+                                <div class="dispatch-color-box police-box">
+                                    <i class="fa-solid fa-building-shield"></i>
+                                </div>
+                                <i class="fa-solid fa-phone dispatch-phone police-phone"></i>
+                            </div>
+                            <div class="dispatch-info">
+                                <span class="dispatch-name">Police</span>
+                                <span class="dispatch-number police-color">100</span>
+                            </div>
+                        </button>
+                        <button class="dispatch-card" data-service="Ambulance" data-phone="102">
+                            <div class="dispatch-top">
+                                <div class="dispatch-color-box ambulance-box">
+                                    <i class="fa-solid fa-truck-medical"></i>
+                                </div>
+                                <i class="fa-solid fa-phone dispatch-phone ambulance-phone"></i>
+                            </div>
+                            <div class="dispatch-info">
+                                <span class="dispatch-name">Ambulance</span>
+                                <span class="dispatch-number ambulance-color">102</span>
+                            </div>
+                        </button>
+                        <button class="dispatch-card" data-service="Fire Control" data-phone="101">
+                            <div class="dispatch-top">
+                                <div class="dispatch-color-box fire-box">
+                                    <i class="fa-solid fa-fire-flame-curved"></i>
+                                </div>
+                                <i class="fa-solid fa-phone dispatch-phone fire-phone"></i>
+                            </div>
+                            <div class="dispatch-info">
+                                <span class="dispatch-name">Fire Control</span>
+                                <span class="dispatch-number fire-color">101</span>
+                            </div>
+                        </button>
+                        <button class="dispatch-card" data-service="Women Help" data-phone="1091">
+                            <div class="dispatch-top">
+                                <div class="dispatch-color-box women-box">
+                                    <i class="fa-solid fa-person-dress"></i>
+                                </div>
+                                <i class="fa-solid fa-phone dispatch-phone women-phone"></i>
+                            </div>
+                            <div class="dispatch-info">
+                                <span class="dispatch-name">Women Help</span>
+                                <span class="dispatch-number women-color">1091</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live GPS -->
+                <div class="section-block gps-section">
+                    <div class="gps-header-row">
+                        <div class="gps-left">
+                            <i class="fa-solid fa-location-crosshairs gps-hdr-icon"></i>
+                            <div>
+                                <div class="gps-title">LIVE PRECISION GPS</div>
+                                <div class="gps-accuracy-row" id="gps-accuracy-text">
+                                    <span class="gps-green-dot"></span>
+                                    <span>Acquiring GPS…</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gps-coords" id="gps-coords">— °N, — °E</div>
+                    </div>
+
+                    <div class="map-wrapper">
+                        <div id="map"></div>
+                        <button id="recenter-btn" class="map-recenter-btn">
+                            <i class="fa-solid fa-crosshairs"></i>
+                        </button>
+                    </div>
+
+                    <div class="address-row">
+                        <i class="fa-solid fa-location-dot addr-icon"></i>
+                        <span id="address-text">Detecting your location…</span>
+                    </div>
+
+                    <div class="share-row">
+                        <button class="share-btn-dark" id="share-link-btn">
+                            <i class="fa-solid fa-share-nodes"></i> Share Live Link
+                        </button>
+                        <button class="share-btn-wa" id="whatsapp-share-btn">
+                            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                        </button>
+                        <button class="share-btn-copy" id="copy-link-btn">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Trusted Network -->
+                <div class="section-block">
+                    <div class="trusted-hdr-row">
+                        <div class="trusted-left">
+                            <div class="trusted-shield-box">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <span class="trusted-title">TRUSTED NETWORK</span>
+                        </div>
+                        <span class="guardian-count-badge">1 Active Live Guardian</span>
+                    </div>
+                    <div class="guardian-row" id="guardian-card">
+                        <div class="guardian-avatar">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <div class="guardian-details">
+                            <span class="guardian-name" id="guardian-display-name">Guardian</span>
+                            <span class="guardian-role-tag">Primary</span>
+                        </div>
+                        <button class="guardian-alert-btn" id="notify-guardian-btn">Alert</button>
+                    </div>
+                </div>
+
+                <div style="height:80px;"></div>
+            </div><!-- /tab-sos -->
+
+            <!-- ===== TAB: SAFE ROUTE ===== -->
+            <div class="tab-panel" id="tab-route">
+                <div class="placeholder-panel">
+                    <div class="pp-icon"><i class="fa-solid fa-route"></i></div>
+                    <h3>Safe Route</h3>
+                    <p>Navigate to the nearest safe zone, police station, or hospital using live GPS routing.</p>
+                    <div class="section-block" style="margin-top:20px;">
+                        <div class="section-row-header">
+                            <div class="section-title-wrap">
+                                <i class="fa-solid fa-map-location-dot dispatch-hdr-icon"></i>
+                                <span class="section-title">QUICK NAVIGATE</span>
+                            </div>
+                        </div>
+                        <div class="route-btn-list">
+                            <a class="route-nav-btn" id="nav-police-btn" href="#" target="_blank">
+                                <div class="rnb-left">
+                                    <div class="rnb-icon" style="background:#EEF4FF;color:#2563EB;"><i class="fa-solid fa-building-shield"></i></div>
+                                    <span>Nearest Police Station</span>
+                                </div>
+                                <i class="fa-solid fa-arrow-right rnb-arrow"></i>
+                            </a>
+                            <a class="route-nav-btn" id="nav-hospital-btn" href="#" target="_blank">
+                                <div class="rnb-left">
+                                    <div class="rnb-icon" style="background:#ECFDF5;color:#059669;"><i class="fa-solid fa-hospital"></i></div>
+                                    <span>Nearest Hospital</span>
+                                </div>
+                                <i class="fa-solid fa-arrow-right rnb-arrow"></i>
+                            </a>
+                            <a class="route-nav-btn" id="nav-fire-btn" href="#" target="_blank">
+                                <div class="rnb-left">
+                                    <div class="rnb-icon" style="background:#FFF7ED;color:#EA580C;"><i class="fa-solid fa-fire-extinguisher"></i></div>
+                                    <span>Nearest Fire Station</span>
+                                </div>
+                                <i class="fa-solid fa-arrow-right rnb-arrow"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div style="height:80px;"></div>
+            </div><!-- /tab-route -->
+
+            <!-- ===== TAB: CONTACTS ===== -->
+            <div class="tab-panel" id="tab-contacts">
+                <div class="contacts-header-row">
+                    <h2 class="contacts-title">My Contacts</h2>
+                    <button class="btn-red" id="add-contact-btn" style="padding:8px 16px;font-size:13px;">
+                        <i class="fa-solid fa-plus"></i> Add
+                    </button>
+                </div>
+
+                <!-- Guardian contact always shown -->
+                <div class="section-block" style="margin-top:4px;">
+                    <div class="trusted-hdr-row">
+                        <div class="trusted-left">
+                            <div class="trusted-shield-box">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <span class="trusted-title">PRIMARY GUARDIAN</span>
+                        </div>
+                        <span class="guardian-count-badge">SOS Alert</span>
+                    </div>
+                    <div class="guardian-row">
+                        <div class="guardian-avatar" style="background:linear-gradient(135deg,#fde8e8,#f8bcbc);">
+                            <i class="fa-solid fa-user" style="color:#CC1414;"></i>
+                        </div>
+                        <div class="guardian-details">
+                            <span class="guardian-name" id="contact-guardian-name">—</span>
+                            <span class="guardian-role-tag" id="contact-guardian-phone">—</span>
+                        </div>
+                        <button class="guardian-alert-btn" id="contact-call-guardian">
+                            <i class="fa-solid fa-phone"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Extra contacts list -->
+                <div class="section-block" style="margin-top:0;">
+                    <div class="trusted-hdr-row">
+                        <span class="trusted-title" style="font-size:12px;color:var(--text-secondary);">ADDITIONAL CONTACTS</span>
+                    </div>
+                    <div id="extra-contacts-list">
+                        <div class="empty-contacts">
+                            <i class="fa-solid fa-address-book"></i>
+                            <p>No additional contacts yet.<br>Tap <strong>+ Add</strong> to add more people.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="height:80px;"></div>
+            </div><!-- /tab-contacts -->
+
+            <!-- ===== TAB: SETTINGS (inline panel) ===== -->
+            <div class="tab-panel" id="tab-settings">
+                <div class="settings-panel-wrap">
+                    <div class="settings-panel-title">Profile</div>
+                    <div class="section-block" style="margin-top:0;">
+                        <div class="profile-row" id="profile-display">
+                            <div class="guardian-avatar" style="background:linear-gradient(135deg,#fde8e8,#f8bcbc);">
+                                <i class="fa-solid fa-user" style="color:#CC1414;"></i>
+                            </div>
+                            <div class="guardian-details">
+                                <span class="guardian-name" id="settings-display-name">—</span>
+                                <span class="guardian-role-tag" id="settings-display-phone">—</span>
+                            </div>
+                            <button class="guardian-alert-btn" id="edit-profile-btn" style="background:#F0F0FF;color:#4338CA;">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="settings-panel-title">Edit Profile</div>
+                    <form id="settings-form" class="section-block settings-form" style="margin-top:0;gap:12px;">
+                        <div class="input-row">
                             <i class="fa-solid fa-user"></i>
                             <input type="text" id="settings-user-name" placeholder="Full Name" required>
                         </div>
-                        <div class="input-group">
-                            <i class="fa-solid fa-phone"></i>
-                            <input type="tel" id="settings-user-phone" placeholder="Mobile Number" required pattern="[0-9]{10}">
+                        <div class="input-row phone-row">
+                            <span class="country-prefix">+91</span>
+                            <input type="tel" id="settings-user-phone" placeholder="Mobile Number" maxlength="10">
                         </div>
 
-                        <div class="form-section-title">Edit Guardian Contact</div>
-                        <div class="input-group">
+                        <div class="settings-group-lbl">Guardian Contact</div>
+                        <div class="input-row">
                             <i class="fa-solid fa-user-shield"></i>
-                            <input type="text" id="settings-emergency-name" placeholder="Contact Person Name" required>
+                            <input type="text" id="settings-emergency-name" placeholder="Guardian Name" required>
                         </div>
-                        <div class="input-group">
-                            <i class="fa-solid fa-mobile-screen-button"></i>
-                            <input type="tel" id="settings-emergency-phone" placeholder="Contact Mobile Number" required pattern="[0-9]{10}">
+                        <div class="input-row phone-row" style="margin-top:10px;">
+                            <span class="country-prefix">+91</span>
+                            <input type="tel" id="settings-emergency-phone" placeholder="Guardian Mobile" maxlength="10">
                         </div>
 
-                        <div class="settings-actions">
-                            <button type="submit" class="btn btn-primary">Save Config</button>
-                            <button type="button" id="logout-btn" class="btn btn-danger">
-                                <i class="fa-solid fa-right-from-bracket"></i> Reset App Data
+                        <div class="settings-btns-row">
+                            <button type="submit" class="btn-red">Save Changes</button>
+                            <button type="button" id="logout-btn" class="btn-ghost-red">
+                                <i class="fa-solid fa-right-from-bracket"></i> Reset App
                             </button>
                         </div>
                     </form>
+
+                    <div class="settings-panel-title">About</div>
+                    <div class="section-block about-block" style="margin-top:0;">
+                        <div class="about-row"><span>Version</span><span>2.4.0</span></div>
+                        <div class="about-row"><span>Emergency Helplines</span><span>India</span></div>
+                        <div class="about-row"><span>Data Storage</span><span>Local Only</span></div>
+                        <div class="about-row"><span>GPS</span><span>High Accuracy</span></div>
+                    </div>
+                </div>
+                <div style="height:80px;"></div>
+            </div><!-- /tab-settings -->
+
+        </div><!-- /dash-scroll -->
+
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="sos">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>SOS Guard</span>
+            </button>
+            <button class="nav-btn" data-tab="route">
+                <i class="fa-solid fa-route"></i>
+                <span>Safe Route</span>
+            </button>
+            <button class="nav-btn" data-tab="contacts">
+                <i class="fa-solid fa-address-book"></i>
+                <span>Contacts</span>
+            </button>
+            <button class="nav-btn" data-tab="settings">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </button>
+        </nav>
+    </section>
+
+    <!-- ========== DIALING MODAL ========== -->
+    <div id="alert-modal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-alert-icon-wrap">
+                <i class="fa-solid fa-phone-volume modal-alert-icon"></i>
+            </div>
+            <h2 class="modal-title" id="alert-service-title">Contacting Police</h2>
+            <p class="modal-desc">Initiating emergency call and sending GPS location…</p>
+
+            <div class="log-status-box">
+                <div class="log-row">
+                    <span class="log-dot green"></span>
+                    <span>GPS Coordinates locked</span>
+                </div>
+                <div class="log-row">
+                    <span class="log-dot pulse" id="db-status-dot"></span>
+                    <span id="db-status-text">Preparing alert…</span>
                 </div>
             </div>
-        </div>
 
+            <div class="sms-card">
+                <div class="sms-card-hdr">
+                    <i class="fa-solid fa-comment-sms"></i>
+                    <span>Send Location to Guardian</span>
+                </div>
+                <p class="sms-preview-text" id="sms-preview-text">Loading preview…</p>
+                <div class="sms-btn-row">
+                    <a id="sms-btn" href="#" class="sms-action-btn sms-blue">
+                        <i class="fa-solid fa-message"></i> SMS
+                    </a>
+                    <a id="whatsapp-btn" href="#" class="sms-action-btn sms-green" target="_blank">
+                        <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                    </a>
+                </div>
+            </div>
+
+            <div class="modal-action-col">
+                <a id="direct-dial-link" href="#" class="btn-red btn-full">
+                    <i class="fa-solid fa-phone"></i> Call Now
+                </a>
+                <button id="close-alert-btn" class="btn-ghost btn-full">Close &amp; Go Back</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Leaflet JS for Maps -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
-    <!-- Application Logic -->
-    <script src="app.js"></script>
+    <!-- ========== ADD CONTACT MODAL ========== -->
+    <div id="add-contact-modal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <h2 class="modal-title">Add Emergency Contact</h2>
+            <form id="add-contact-form" style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+                <label class="field-label">Name</label>
+                <div class="input-row">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="new-contact-name" placeholder="e.g., Sister, Friend" required>
+                </div>
+                <label class="field-label">Mobile Number</label>
+                <div class="input-row phone-row">
+                    <span class="country-prefix">+91</span>
+                    <input type="tel" id="new-contact-phone" placeholder="98765 43210" maxlength="10" pattern="[6-9][0-9]{9}" required>
+                </div>
+                <label class="field-label">Relation</label>
+                <div class="input-row">
+                    <i class="fa-solid fa-heart"></i>
+                    <input type="text" id="new-contact-relation" placeholder="e.g., Sister, Colleague">
+                </div>
+                <div class="modal-action-col" style="margin-top:4px;">
+                    <button type="submit" class="btn-red btn-full">Save Contact</button>
+                    <button type="button" id="cancel-add-contact" class="btn-ghost btn-full">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div><!-- /app-container -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="app.js"></script>
 </body>
 </html>
