@@ -20,11 +20,11 @@
     <section id="login-screen" class="screen active">
         <div class="login-content">
             <div class="logo-area">
-                <div class="shield-icon-box">
-                    <i class="fa-solid fa-shield-halved"></i>
+                <div class="shield-icon-box brand-logo-box">
+                    <img src="logo.jpg" alt="Kavach Logo" class="brand-logo-img">
                 </div>
                 <h1 class="brand-name">KAVACH</h1>
-                <p class="brand-sub">Secure Entry Protocol</p>
+                <p class="brand-sub">Safety · Support · Strength</p>
             </div>
 
             <form id="login-form" class="login-form-card">
@@ -91,8 +91,8 @@
     <section id="dashboard-screen" class="screen">
         <header class="dash-header">
             <div class="dash-header-left">
-                <div class="kavach-logo-mini">
-                    <i class="fa-solid fa-shield-halved"></i>
+                <div class="kavach-logo-mini brand-logo-mini">
+                    <img src="logo.jpg" alt="Kavach" class="brand-logo-img">
                 </div>
                 <div class="dash-brand-wrap">
                     <div class="dash-brand-top">
@@ -139,8 +139,13 @@
                         <div class="sos-outer-ring">
                             <div class="sos-inner-ring">
                                 <button class="sos-btn" id="sos-btn">
+                                    <svg class="sos-progress-svg" viewBox="0 0 128 128">
+                                        <circle class="sos-progress-bg" cx="64" cy="64" r="58"></circle>
+                                        <circle class="sos-progress-bar" id="sos-progress-ring" cx="64" cy="64" r="58"></circle>
+                                    </svg>
                                     <span class="sos-text">SOS</span>
                                     <span class="sos-sub-text">ALERT ALL</span>
+                                    <span class="sos-countdown" id="sos-countdown"></span>
                                 </button>
                             </div>
                         </div>
@@ -283,42 +288,58 @@
 
             <!-- ===== TAB: SAFE ROUTE ===== -->
             <div class="tab-panel" id="tab-route">
-                <div class="placeholder-panel">
-                    <div class="pp-icon"><i class="fa-solid fa-route"></i></div>
-                    <h3>Safe Route</h3>
-                    <p>Navigate to the nearest safe zone, police station, or hospital using live GPS routing.</p>
-                    <div class="section-block" style="margin-top:20px;">
-                        <div class="section-row-header">
-                            <div class="section-title-wrap">
-                                <i class="fa-solid fa-map-location-dot dispatch-hdr-icon"></i>
-                                <span class="section-title">QUICK NAVIGATE</span>
-                            </div>
+                <div class="route-header">
+                    <h2><i class="fa-solid fa-shield-heart" style="color:var(--red);"></i> Safe Route &amp; Nearby Services</h2>
+                    <p>Live GPS discovery of nearest police stations, hospitals, and fire stations.</p>
+                </div>
+
+                <!-- Quick Category Filters -->
+                <div class="facility-filters">
+                    <button class="facility-filter-btn active" data-filter="all">
+                        <span>All</span>
+                        <span class="filter-count">0</span>
+                    </button>
+                    <button class="facility-filter-btn police-filter" data-filter="police">
+                        <i class="fa-solid fa-building-shield"></i>
+                        <span>Police</span>
+                        <span class="filter-count">0</span>
+                    </button>
+                    <button class="facility-filter-btn hospital-filter" data-filter="hospital">
+                        <i class="fa-solid fa-hospital"></i>
+                        <span>Hospitals</span>
+                        <span class="filter-count">0</span>
+                    </button>
+                    <button class="facility-filter-btn fire-filter" data-filter="fire_station">
+                        <i class="fa-solid fa-fire-extinguisher"></i>
+                        <span>Fire</span>
+                        <span class="filter-count">0</span>
+                    </button>
+                </div>
+
+                <!-- Interactive Nearby Map -->
+                <div class="section-block" style="padding:12px;">
+                    <div class="nearby-map-wrapper">
+                        <div id="nearby-map"></div>
+                    </div>
+                </div>
+
+                <!-- List of Nearby Facilities -->
+                <div class="section-block" style="margin-top:12px;">
+                    <div class="section-row-header">
+                        <div class="section-title-wrap">
+                            <i class="fa-solid fa-location-dot dispatch-hdr-icon" style="color:var(--red);"></i>
+                            <span class="section-title">NEAREST EMERGENCY FACILITIES</span>
                         </div>
-                        <div class="route-btn-list">
-                            <a class="route-nav-btn" id="nav-police-btn" href="#" target="_blank">
-                                <div class="rnb-left">
-                                    <div class="rnb-icon" style="background:#EEF4FF;color:#2563EB;"><i class="fa-solid fa-building-shield"></i></div>
-                                    <span>Nearest Police Station</span>
-                                </div>
-                                <i class="fa-solid fa-arrow-right rnb-arrow"></i>
-                            </a>
-                            <a class="route-nav-btn" id="nav-hospital-btn" href="#" target="_blank">
-                                <div class="rnb-left">
-                                    <div class="rnb-icon" style="background:#ECFDF5;color:#059669;"><i class="fa-solid fa-hospital"></i></div>
-                                    <span>Nearest Hospital</span>
-                                </div>
-                                <i class="fa-solid fa-arrow-right rnb-arrow"></i>
-                            </a>
-                            <a class="route-nav-btn" id="nav-fire-btn" href="#" target="_blank">
-                                <div class="rnb-left">
-                                    <div class="rnb-icon" style="background:#FFF7ED;color:#EA580C;"><i class="fa-solid fa-fire-extinguisher"></i></div>
-                                    <span>Nearest Fire Station</span>
-                                </div>
-                                <i class="fa-solid fa-arrow-right rnb-arrow"></i>
-                            </a>
+                        <span class="section-subtitle">Real-time distance from you</span>
+                    </div>
+                    <div id="facilities-list" class="facilities-list-container">
+                        <div class="facility-loading">
+                            <div class="facility-spinner"></div>
+                            <p>Searching nearby emergency services…</p>
                         </div>
                     </div>
                 </div>
+
                 <div style="height:80px;"></div>
             </div><!-- /tab-route -->
 
@@ -526,6 +547,25 @@
                     <button type="button" id="cancel-add-contact" class="btn-ghost btn-full">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ========== SOS ACTIVE SIREN MODAL ========== -->
+    <div id="sos-active-modal" class="modal-overlay">
+        <div class="modal-sheet sos-siren-modal-sheet">
+            <div class="siren-pulse-bg"></div>
+            <div class="modal-alert-icon-wrap siren-icon-wrap">
+                <i class="fa-solid fa-volume-high modal-alert-icon siren-modal-icon"></i>
+            </div>
+            <h2 class="modal-title siren-modal-title">🚨 SOS SIREN BLARING</h2>
+            <p class="modal-desc">Siren sounding at maximum volume. Emergency dispatch triggered.</p>
+            <div class="siren-timer-box">
+                <span class="siren-timer-label">Siren Active For</span>
+                <span class="siren-timer-val" id="sos-elapsed-time">0s</span>
+            </div>
+            <button id="stop-siren-btn" class="btn-red btn-full siren-stop-btn">
+                <i class="fa-solid fa-volume-xmark"></i> STOP SIREN
+            </button>
         </div>
     </div>
 

@@ -1,6 +1,6 @@
 /**
- * KAVACH — Application Logic v2.4
- * Fixes: map init/destroy, tab navigation, contacts page, settings inline, no DB
+ * KAVACH — Application Logic v3.0
+ * Features: SOS hold-siren, fixed OSM tiles (no API key), nearby facilities panel
  */
 
 // ============================================================
@@ -8,15 +8,25 @@
 // ============================================================
 const state = {
     user: null,
-    extraContacts: [],   // additional contacts beyond primary guardian
+    extraContacts: [],
     location: null,
     map: null,
+    nearbyMap: null,
     userMarker: null,
+    nearbyUserMarker: null,
     facilityMarkers: [],
+    nearbyFacilityMarkers: [],
     facilities: [],
     watchId: null,
     sosHoldTimer: null,
-    mapInitialized: false
+    sosCountdownInterval: null,
+    mapInitialized: false,
+    nearbyMapInitialized: false,
+    sirenAudioCtx: null,
+    sirenOscillators: [],
+    sirenGainNode: null,
+    sirenActive: false,
+    activeFilter: 'all'
 };
 
 const DEFAULT_COORDS = [20.5937, 78.9629];
@@ -35,13 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function initApp() {
     try {
         const storedUser = localStorage.getItem('kavach_user');
-        if (storedUser) {
-            state.user = JSON.parse(storedUser);
-        }
+        if (storedUser) state.user = JSON.parse(storedUser);
         const storedContacts = localStorage.getItem('kavach_contacts');
-        if (storedContacts) {
-            state.extraContacts = JSON.parse(storedContacts);
-        }
+        if (storedContacts) state.extraContacts = JSON.parse(storedContacts);
     } catch (e) {
         localStorage.removeItem('kavach_user');
         localStorage.removeItem('kavach_contacts');
@@ -61,39 +67,31 @@ function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(screenId);
     if (target) target.classList.add('active');
-
-    // Invalidate map size when dashboard becomes visible
     if (screenId === 'dashboard-screen') {
         setTimeout(() => invalidateMap(), 100);
     }
 }
 
 // ============================================================
-// Tab Navigation (inside dashboard)
+// Tab Navigation
 // ============================================================
 function switchTab(tabName) {
-    // Deactivate all tab panels
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    // Activate target panel
     const panel = document.getElementById('tab-' + tabName);
     if (panel) panel.classList.add('active');
 
-    // Update nav buttons
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     const navBtn = document.querySelector(`.nav-btn[data-tab="${tabName}"]`);
     if (navBtn) navBtn.classList.add('active');
 
-    // If switching to SOS tab, invalidate map
-    if (tabName === 'sos') {
-        setTimeout(() => invalidateMap(), 150);
-    }
-    // If switching to settings, populate form
-    if (tabName === 'settings') {
-        populateSettingsForm();
-    }
-    // If switching to contacts, render contacts
-    if (tabName === 'contacts') {
-        renderContacts();
+    if (tabName === 'sos') setTimeout(() => invalidateMap(), 150);
+    if (tabName === 'settings') populateSettingsForm();
+    if (tabName === 'contacts') renderContacts();
+    if (tabName === 'route') {
+        setTimeout(() => {
+            initNearbyMap();
+            renderFacilitiesList();
+        }, 200);
     }
 }
 
@@ -102,7 +100,7 @@ function switchTab(tabName) {
 // ============================================================
 function setupEventListeners() {
 
-    // SCREEN 1: Login
+    // Login
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', e => {
@@ -115,7 +113,7 @@ function setupEventListeners() {
         });
     }
 
-    // SCREEN 2: Contact Setup
+    // Contact Setup
     const contactForm = document.getElementById('contact-form');
     if (contactForm) {
         contactForm.addEventListener('submit', e => {
@@ -130,18 +128,16 @@ function setupEventListeners() {
         });
     }
 
-    // Bottom nav tabs
+    // Bottom nav
     document.querySelectorAll('.nav-btn[data-tab]').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
     });
 
-    // Header settings trigger → go to settings tab
+    // Header settings
     const settingsTrigger = document.getElementById('settings-trigger');
-    if (settingsTrigger) {
-        settingsTrigger.addEventListener('click', () => switchTab('settings'));
-    }
+    if (settingsTrigger) settingsTrigger.addEventListener('click', () => switchTab('settings'));
 
-    // Settings form (inline panel)
+    // Settings form
     const settingsForm = document.getElementById('settings-form');
     if (settingsForm) {
         settingsForm.addEventListener('submit', e => {
@@ -159,69 +155,51 @@ function setupEventListeners() {
         });
     }
 
-    // Reset / Logout
+    // Reset
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             if (confirm('Reset all Kavach data? This cannot be undone.')) {
                 if (state.watchId) navigator.geolocation.clearWatch(state.watchId);
+                stopSiren();
                 localStorage.clear();
                 state.user = null;
                 state.location = null;
                 state.extraContacts = [];
                 destroyMap();
+                destroyNearbyMap();
                 showScreen('login-screen');
             }
         });
     }
 
-    // SOS Hold Button
-    const sosBtn = document.getElementById('sos-btn');
-    if (sosBtn) {
-        sosBtn.addEventListener('pointerdown', () => {
-            sosBtn.classList.add('sos-pressing');
-            state.sosHoldTimer = setTimeout(() => {
-                sosBtn.classList.remove('sos-pressing');
-                triggerSOS();
-            }, 3000);
-        });
-        ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => {
-            sosBtn.addEventListener(evt, () => {
-                clearTimeout(state.sosHoldTimer);
-                sosBtn.classList.remove('sos-pressing');
-            });
-        });
-    }
+    // SOS Hold Button (3-second countdown + siren)
+    setupSOSButton();
 
     // Dispatch cards
     document.querySelectorAll('.dispatch-card').forEach(btn => {
-        btn.addEventListener('click', () => {
-            triggerEmergency(btn.dataset.service, btn.dataset.phone);
-        });
+        btn.addEventListener('click', () => triggerEmergency(btn.dataset.service, btn.dataset.phone));
     });
 
     // Close alert modal
-    const closeAlertBtn = document.getElementById('close-alert-btn');
-    if (closeAlertBtn) {
-        closeAlertBtn.addEventListener('click', () => closeModal('alert-modal'));
-    }
+    document.getElementById('close-alert-btn')?.addEventListener('click', () => {
+        closeModal('alert-modal');
+        stopSiren();
+    });
 
     // Map recenter
-    const recenterBtn = document.getElementById('recenter-btn');
-    if (recenterBtn) {
-        recenterBtn.addEventListener('click', () => {
-            if (state.location && state.map) {
-                state.map.setView([state.location.latitude, state.location.longitude], 15);
-            }
-        });
-    }
+    document.getElementById('recenter-btn')?.addEventListener('click', () => {
+        if (state.location && state.map) {
+            state.map.setView([state.location.latitude, state.location.longitude], 15);
+        }
+    });
 
     // Share buttons
     document.getElementById('share-link-btn')?.addEventListener('click', () => shareLocation('link'));
     document.getElementById('whatsapp-share-btn')?.addEventListener('click', () => shareLocation('whatsapp'));
     document.getElementById('copy-link-btn')?.addEventListener('click', () => shareLocation('copy'));
 
-    // Notify guardian (dashboard trusted network)
+    // Guardian buttons
     document.getElementById('notify-guardian-btn')?.addEventListener('click', notifyGuardian);
     document.getElementById('contact-call-guardian')?.addEventListener('click', () => {
         if (state.user?.emergencyPhone) window.location.href = `tel:${state.user.emergencyPhone}`;
@@ -248,7 +226,7 @@ function setupEventListeners() {
         });
     }
 
-    // Safe route nav buttons — set href dynamically when location known
+    // Safe-route nav buttons
     document.getElementById('nav-police-btn')?.addEventListener('click', e => {
         e.preventDefault();
         openGoogleMapsSearch('police station');
@@ -262,14 +240,106 @@ function setupEventListeners() {
         openGoogleMapsSearch('fire station');
     });
 
+    // Stop siren button
+    document.getElementById('stop-siren-btn')?.addEventListener('click', () => {
+        stopSiren();
+        closeModal('sos-active-modal');
+    });
+
+    // Facility filter buttons
+    document.querySelectorAll('.facility-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.facility-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.activeFilter = btn.dataset.filter;
+            renderFacilitiesList();
+            updateNearbyMapMarkers();
+        });
+    });
+
     // Close modals on overlay click
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', e => {
-            if (e.target === overlay) overlay.classList.remove('active');
+            if (e.target === overlay) {
+                overlay.classList.remove('active');
+                if (overlay.id === 'sos-active-modal') stopSiren();
+            }
         });
     });
 }
 
+// ============================================================
+// SOS Button Setup — 3-second hold countdown + siren
+// ============================================================
+function setupSOSButton() {
+    const sosBtn = document.getElementById('sos-btn');
+    if (!sosBtn) return;
+
+    const progressRing = document.getElementById('sos-progress-ring');
+    const countdownEl = document.getElementById('sos-countdown');
+    const HOLD_MS = 3000;
+    let startTime = null;
+    let rafId = null;
+
+    function animateProgress(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const progress = Math.min(elapsed / HOLD_MS, 1);
+
+        // Update SVG ring
+        if (progressRing) {
+            const circumference = 2 * Math.PI * 58; // r=58
+            const offset = circumference * (1 - progress);
+            progressRing.style.strokeDashoffset = offset;
+        }
+
+        // Update countdown text
+        if (countdownEl) {
+            const remaining = Math.ceil((HOLD_MS - elapsed) / 1000);
+            countdownEl.textContent = remaining > 0 ? remaining : '';
+        }
+
+        if (progress < 1) {
+            rafId = requestAnimationFrame(animateProgress);
+        }
+    }
+
+    function resetProgress() {
+        startTime = null;
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        if (progressRing) {
+            const circumference = 2 * Math.PI * 58;
+            progressRing.style.strokeDashoffset = circumference;
+        }
+        if (countdownEl) countdownEl.textContent = '';
+        sosBtn.classList.remove('sos-pressing');
+    }
+
+    sosBtn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        sosBtn.setPointerCapture(e.pointerId);
+        sosBtn.classList.add('sos-pressing');
+
+        // Start countdown animation
+        rafId = requestAnimationFrame(animateProgress);
+
+        state.sosHoldTimer = setTimeout(() => {
+            resetProgress();
+            triggerSOS();
+        }, HOLD_MS);
+    });
+
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => {
+        sosBtn.addEventListener(evt, () => {
+            clearTimeout(state.sosHoldTimer);
+            resetProgress();
+        });
+    });
+}
+
+// ============================================================
+// Google Maps Search
+// ============================================================
 function openGoogleMapsSearch(query) {
     if (state.location) {
         const { latitude: lat, longitude: lng } = state.location;
@@ -282,13 +352,8 @@ function openGoogleMapsSearch(query) {
 // ============================================================
 // Save helpers
 // ============================================================
-function saveUser() {
-    localStorage.setItem('kavach_user', JSON.stringify(state.user));
-}
-
-function saveContacts() {
-    localStorage.setItem('kavach_contacts', JSON.stringify(state.extraContacts));
-}
+function saveUser() { localStorage.setItem('kavach_user', JSON.stringify(state.user)); }
+function saveContacts() { localStorage.setItem('kavach_contacts', JSON.stringify(state.extraContacts)); }
 
 // ============================================================
 // Load Dashboard
@@ -298,7 +363,6 @@ function loadDashboard() {
     showScreen('dashboard-screen');
     updateDashboardUI();
     switchTab('sos');
-    // Small delay to let the screen paint before initialising the map
     setTimeout(() => {
         initMap();
         startLocationTracking();
@@ -307,7 +371,6 @@ function loadDashboard() {
 
 function updateDashboardUI() {
     if (!state.user) return;
-    // Guardian in trusted network
     const el = document.getElementById('guardian-display-name');
     if (el) el.textContent = state.user.emergencyName
         ? `${state.user.emergencyName} (${state.user.emergencyPhone})`
@@ -316,7 +379,6 @@ function updateDashboardUI() {
 
 function populateSettingsForm() {
     if (!state.user) return;
-    // Strip +91 prefix for display in the phone inputs
     const strip91 = v => (v || '').replace(/^\+91/, '');
     setVal('settings-display-name', state.user.name);
     setVal('settings-display-phone', state.user.phone || '');
@@ -332,16 +394,14 @@ function setVal(id, val) {
 }
 
 // ============================================================
-// Contacts rendering
+// Contacts
 // ============================================================
 function renderContacts() {
-    // Contacts tab guardian display
     const guardianName = document.getElementById('contact-guardian-name');
     const guardianPhone = document.getElementById('contact-guardian-phone');
     if (guardianName) guardianName.textContent = state.user?.emergencyName || '—';
     if (guardianPhone) guardianPhone.textContent = state.user?.emergencyPhone || '—';
 
-    // Extra contacts list
     const list = document.getElementById('extra-contacts-list');
     if (!list) return;
 
@@ -387,32 +447,22 @@ function escHtml(str) {
 }
 
 // ============================================================
-// Map — init, destroy, invalidate
+// MAIN MAP — init, destroy, invalidate
 // ============================================================
 function initMap() {
-    // If already initialized, just invalidate size
-    if (state.map) {
-        invalidateMap();
-        return;
-    }
+    if (state.map) { invalidateMap(); return; }
     const mapEl = document.getElementById('map');
     if (!mapEl) return;
+    if (mapEl.offsetHeight === 0) { setTimeout(initMap, 200); return; }
 
-    // Ensure the element has rendered dimensions
-    if (mapEl.offsetHeight === 0) {
-        setTimeout(initMap, 200);
-        return;
-    }
+    state.map = L.map('map', { zoomControl: false, attributionControl: true })
+        .setView(DEFAULT_COORDS, 5);
 
-    state.map = L.map('map', {
-        zoomControl: false
-    }).setView(DEFAULT_COORDS, 5);
-
-    // CartoDB Voyager — free, no API key, works from file:// origins
+    // CartoDB Voyager tile layer (free, reliable, no API key, avoids OSM block)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         subdomains: 'abcd',
         maxZoom: 19,
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
     }).addTo(state.map);
 
     state.mapInitialized = true;
@@ -429,9 +479,98 @@ function destroyMap() {
 }
 
 function invalidateMap() {
-    if (state.map) {
-        state.map.invalidateSize();
+    if (state.map) state.map.invalidateSize();
+}
+
+// ============================================================
+// NEARBY MAP (Safe Route tab)
+// ============================================================
+function initNearbyMap() {
+    const mapEl = document.getElementById('nearby-map');
+    if (!mapEl) return;
+    if (mapEl.offsetHeight === 0) { setTimeout(initNearbyMap, 200); return; }
+
+    if (!state.nearbyMap) {
+        state.nearbyMap = L.map('nearby-map', { zoomControl: false, attributionControl: true })
+            .setView(state.location ? [state.location.latitude, state.location.longitude] : DEFAULT_COORDS, 14);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd',
+            maxZoom: 19,
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(state.nearbyMap);
+
+        state.nearbyMapInitialized = true;
+    } else {
+        state.nearbyMap.invalidateSize();
     }
+
+    if (state.location) {
+        const latlng = [state.location.latitude, state.location.longitude];
+        state.nearbyMap.setView(latlng, 14);
+
+        if (!state.nearbyUserMarker) {
+            const icon = L.divIcon({
+                className: '',
+                html: '<div class="gps-pulse-marker" style="width:16px;height:16px;border:3px solid #fff;"></div>',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+            state.nearbyUserMarker = L.marker(latlng, { icon })
+                .addTo(state.nearbyMap)
+                .bindPopup('<b>📍 You are here</b>');
+        } else {
+            state.nearbyUserMarker.setLatLng(latlng);
+        }
+
+        updateNearbyMapMarkers();
+    }
+}
+
+function destroyNearbyMap() {
+    if (state.nearbyMap) {
+        state.nearbyMap.remove();
+        state.nearbyMap = null;
+        state.nearbyUserMarker = null;
+        state.nearbyFacilityMarkers = [];
+        state.nearbyMapInitialized = false;
+    }
+}
+
+function updateNearbyMapMarkers() {
+    if (!state.nearbyMap) return;
+
+    // Remove old markers
+    state.nearbyFacilityMarkers.forEach(m => state.nearbyMap.removeLayer(m));
+    state.nearbyFacilityMarkers = [];
+
+    const colorMap = {
+        police: { bg: '#2563EB', emoji: '🚔' },
+        hospital: { bg: '#059669', emoji: '🏥' },
+        fire_station: { bg: '#EA580C', emoji: '🚒' }
+    };
+
+    const filtered = state.activeFilter === 'all'
+        ? state.facilities
+        : state.facilities.filter(f => f.type === state.activeFilter);
+
+    filtered.slice(0, 30).forEach(f => {
+        const c = colorMap[f.type] || { bg: '#6366f1', emoji: '📍' };
+        const icon = L.divIcon({
+            html: `<div style="background:${c.bg};width:28px;height:28px;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px ${c.bg}88;display:flex;align-items:center;justify-content:center;font-size:13px;">${c.emoji}</div>`,
+            className: '',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+        const distText = f.distance < 1
+            ? `${(f.distance * 1000).toFixed(0)}m`
+            : `${f.distance.toFixed(1)}km`;
+
+        const m = L.marker([f.latitude, f.longitude], { icon })
+            .addTo(state.nearbyMap)
+            .bindPopup(`<b>${f.name}</b><br><span style="color:#666">${f.type.replace('_', ' ')}</span><br><b style="color:${c.bg}">${distText} away</b>`);
+        state.nearbyFacilityMarkers.push(m);
+    });
 }
 
 // ============================================================
@@ -442,7 +581,7 @@ function startLocationTracking() {
         updateGpsText('<span style="color:#EA580C">⚠ GPS not supported</span>');
         return;
     }
-    if (state.watchId) return; // already watching
+    if (state.watchId) return;
 
     state.watchId = navigator.geolocation.watchPosition(
         onLocationSuccess,
@@ -496,13 +635,13 @@ function updateGpsText(html) {
 }
 
 // ============================================================
-// Reverse Geocode
+// Reverse Geocode (Nominatim — free, no API key)
 // ============================================================
 async function reverseGeocode(lat, lng) {
     try {
         const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`,
-            { headers: { 'Accept-Language': 'en' } }
+            { headers: { 'Accept-Language': 'en', 'User-Agent': 'KavachApp/3.0' } }
         );
         const data = await res.json();
         const addr = data.display_name || `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`;
@@ -524,46 +663,66 @@ async function fetchNearestServices(lat, lng) {
       way["amenity"="police"](around:${radius},${lat},${lng});
       node["amenity"="hospital"](around:${radius},${lat},${lng});
       node["healthcare"="hospital"](around:${radius},${lat},${lng});
+      way["amenity"="hospital"](around:${radius},${lat},${lng});
       node["amenity"="fire_station"](around:${radius},${lat},${lng});
+      way["amenity"="fire_station"](around:${radius},${lat},${lng});
     );out body;>;out skel qt;`;
 
-    const overpassUrl = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
+    const urls = [
+        'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query),
+        'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(query)
+    ];
 
-    try {
-        let res = await fetch(overpassUrl);
-        // If blocked (403/0), try via a CORS proxy
-        if (!res.ok) throw new Error('Direct fetch blocked');
-        const data = await res.json();
-        processFacilities(data.elements);
-    } catch {
+    for (const url of urls) {
         try {
-            const proxy = 'https://corsproxy.io/?' + encodeURIComponent(overpassUrl);
-            const res = await fetch(proxy);
-            if (!res.ok) throw new Error('Proxy also failed');
+            const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data.elements && data.elements.length > 0) {
+                processFacilities(data.elements);
+                return;
+            }
+        } catch (e) {
+            console.warn('Overpass attempt failed:', e.message);
+        }
+    }
+
+    // Fallback: try CORS proxy
+    try {
+        const proxy = 'https://corsproxy.io/?' + encodeURIComponent(urls[0]);
+        const res = await fetch(proxy, { signal: AbortSignal.timeout(12000) });
+        if (res.ok) {
             const data = await res.json();
             processFacilities(data.elements);
-        } catch (e2) {
-            console.warn('Overpass fetch failed (both direct & proxy):', e2);
         }
+    } catch (e) {
+        console.warn('All overpass attempts failed:', e.message);
+        showToast('Could not load nearby facilities');
     }
 }
 
 function processFacilities(elements) {
     if (!elements || !state.location) return;
 
+    const seen = new Set();
     state.facilities = elements.map(el => {
         let lat = el.lat, lng = el.lon;
         if (!lat && el.center) { lat = el.center.lat; lng = el.center.lon; }
         if (!lat || !lng) return null;
+
+        const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        if (seen.has(key)) return null;
+        seen.add(key);
+
         const distance = haversine(state.location.latitude, state.location.longitude, lat, lng);
-        const type = (el.tags?.amenity) || 'other';
-        return {
-            name: el.tags?.name || el.tags?.operator || `${type.replace('_', ' ')}`,
-            type, latitude: lat, longitude: lng, distance
-        };
+        const amenity = el.tags?.amenity || el.tags?.healthcare || 'other';
+        const type = amenity === 'hospital' || amenity === 'hospital' ? 'hospital' : amenity;
+        const name = el.tags?.name || el.tags?.operator || capitalise(type.replace('_', ' '));
+
+        return { name, type, latitude: lat, longitude: lng, distance, tags: el.tags || {} };
     }).filter(Boolean).sort((a, b) => a.distance - b.distance);
 
-    // Remove old markers
+    // Add markers to main map
     state.facilityMarkers.forEach(m => state.map?.removeLayer(m));
     state.facilityMarkers = [];
 
@@ -578,18 +737,215 @@ function processFacilities(elements) {
             iconSize: [10, 10],
             iconAnchor: [5, 5]
         });
+        const dist = f.distance < 1 ? `${(f.distance * 1000).toFixed(0)}m` : `${f.distance.toFixed(1)}km`;
         const m = L.marker([f.latitude, f.longitude], { icon })
             .addTo(state.map)
-            .bindPopup(`<b>${f.name}</b><br>${f.type.replace('_', ' ')}<br>${(f.distance * 1000).toFixed(0)}m away`);
+            .bindPopup(`<b>${f.name}</b><br>${f.type.replace('_', ' ')}<br><b>${dist} away</b>`);
         state.facilityMarkers.push(m);
     });
+
+    // Update nearby panel if it's open
+    renderFacilitiesList();
+    if (state.nearbyMapInitialized) updateNearbyMapMarkers();
+
+    // Update counts in filter buttons
+    updateFilterCounts();
+}
+
+function updateFilterCounts() {
+    const counts = { all: state.facilities.length, police: 0, hospital: 0, fire_station: 0 };
+    state.facilities.forEach(f => { if (counts[f.type] !== undefined) counts[f.type]++; });
+
+    document.querySelectorAll('.facility-filter-btn').forEach(btn => {
+        const f = btn.dataset.filter;
+        const countEl = btn.querySelector('.filter-count');
+        if (countEl && counts[f] !== undefined) countEl.textContent = counts[f];
+    });
+}
+
+// ============================================================
+// Render Facilities List (Safe Route tab)
+// ============================================================
+function renderFacilitiesList() {
+    const list = document.getElementById('facilities-list');
+    if (!list) return;
+
+    const filtered = state.activeFilter === 'all'
+        ? state.facilities
+        : state.facilities.filter(f => f.type === state.activeFilter);
+
+    if (state.facilities.length === 0) {
+        list.innerHTML = `
+            <div class="facility-loading">
+                <div class="facility-spinner"></div>
+                <p>${state.location ? 'Searching nearby facilities…' : 'Waiting for GPS location…'}</p>
+            </div>`;
+        return;
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = `<div class="facility-empty"><i class="fa-solid fa-circle-xmark"></i><p>No ${state.activeFilter.replace('_', ' ')} facilities found nearby.</p></div>`;
+        return;
+    }
+
+    const meta = {
+        police: { color: '#2563EB', bg: '#EEF4FF', icon: 'fa-building-shield', label: 'Police Station' },
+        hospital: { color: '#059669', bg: '#ECFDF5', icon: 'fa-hospital', label: 'Hospital' },
+        fire_station: { color: '#EA580C', bg: '#FFF7ED', icon: 'fa-fire-extinguisher', label: 'Fire Station' }
+    };
+
+    list.innerHTML = filtered.slice(0, 15).map(f => {
+        const m = meta[f.type] || { color: '#6366f1', bg: '#EEF2FF', icon: 'fa-location-dot', label: capitalise(f.type) };
+        const dist = f.distance < 1
+            ? `${(f.distance * 1000).toFixed(0)} m`
+            : `${f.distance.toFixed(1)} km`;
+        const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${f.latitude},${f.longitude}&travelmode=driving`;
+
+        return `
+        <div class="facility-card" onclick="window.open('${mapsUrl}','_blank')">
+            <div class="facility-icon-wrap" style="background:${m.bg};color:${m.color}">
+                <i class="fa-solid ${m.icon}"></i>
+            </div>
+            <div class="facility-info">
+                <span class="facility-name">${escHtml(f.name)}</span>
+                <span class="facility-type" style="color:${m.color}">${m.label}</span>
+            </div>
+            <div class="facility-right">
+                <span class="facility-distance">${dist}</span>
+                <i class="fa-solid fa-arrow-right facility-arrow" style="color:${m.color}"></i>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function capitalise(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// ============================================================
+// SIREN — Web Audio API
+// ============================================================
+function startSiren() {
+    if (state.sirenActive) return;
+    state.sirenActive = true;
+
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+
+        state.sirenAudioCtx = new AudioCtx();
+        const ctx = state.sirenAudioCtx;
+
+        state.sirenGainNode = ctx.createGain();
+        state.sirenGainNode.gain.setValueAtTime(0.001, ctx.currentTime);
+        state.sirenGainNode.gain.exponentialRampToValueAtTime(0.9, ctx.currentTime + 0.3);
+        state.sirenGainNode.connect(ctx.destination);
+
+        // Create two oscillators for a wailing siren effect
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        osc1.type = 'sawtooth';
+        osc2.type = 'square';
+
+        // Wail: frequency sweeps up and down
+        function scheduleSirenCycles(startTime) {
+            const cycleLen = 1.2; // seconds per cycle
+            for (let i = 0; i < 60; i++) {
+                const t = startTime + i * cycleLen;
+                osc1.frequency.setValueAtTime(600, t);
+                osc1.frequency.linearRampToValueAtTime(1200, t + cycleLen * 0.5);
+                osc1.frequency.linearRampToValueAtTime(600, t + cycleLen);
+
+                osc2.frequency.setValueAtTime(400, t);
+                osc2.frequency.linearRampToValueAtTime(900, t + cycleLen * 0.5);
+                osc2.frequency.linearRampToValueAtTime(400, t + cycleLen);
+            }
+        }
+
+        scheduleSirenCycles(ctx.currentTime);
+
+        const gain2 = ctx.createGain();
+        gain2.gain.value = 0.3;
+        osc2.connect(gain2);
+        gain2.connect(state.sirenGainNode);
+        osc1.connect(state.sirenGainNode);
+
+        osc1.start();
+        osc2.start();
+        state.sirenOscillators = [osc1, osc2];
+
+        // Gradually increase volume (louder and louder)
+        state.sirenGainNode.gain.exponentialRampToValueAtTime(1.0, ctx.currentTime + 5);
+
+    } catch (e) {
+        console.warn('Siren audio failed:', e);
+    }
+}
+
+function stopSiren() {
+    state.sirenActive = false;
+    try {
+        state.sirenOscillators.forEach(osc => {
+            try { osc.stop(); } catch (_) {}
+        });
+        state.sirenOscillators = [];
+        if (state.sirenGainNode) {
+            state.sirenGainNode.gain.exponentialRampToValueAtTime(0.001, state.sirenAudioCtx?.currentTime + 0.3);
+        }
+        setTimeout(() => {
+            if (state.sirenAudioCtx) {
+                state.sirenAudioCtx.close().catch(() => {});
+                state.sirenAudioCtx = null;
+                state.sirenGainNode = null;
+            }
+        }, 400);
+    } catch (e) {
+        console.warn('Stop siren error:', e);
+    }
+
+    // Reset siren badge UI
+    const sirenSub = document.querySelector('.siren-sub');
+    if (sirenSub) sirenSub.textContent = 'Ready';
+    const sirenIcon = document.querySelector('.siren-icon');
+    if (sirenIcon) sirenIcon.style.color = '';
 }
 
 // ============================================================
 // SOS & Emergency Trigger
 // ============================================================
 function triggerSOS() {
+    // Start siren immediately
+    startSiren();
+    updateSirenUI(true);
+
+    // Show SOS active modal
+    openSOSActiveModal();
+
+    // Also trigger emergency contact alert
     triggerEmergency('ALL EMERGENCY SERVICES', '112');
+}
+
+function updateSirenUI(active) {
+    const sirenSub = document.querySelector('.siren-sub');
+    const sirenIcon = document.querySelector('.siren-icon');
+    if (sirenSub) sirenSub.textContent = active ? '🔊 ACTIVE' : 'Ready';
+    if (sirenIcon) sirenIcon.style.color = active ? '#CC1414' : '';
+}
+
+function openSOSActiveModal() {
+    const modal = document.getElementById('sos-active-modal');
+    if (!modal) return;
+
+    // Update countdown in modal
+    let secs = 0;
+    const timerEl = document.getElementById('sos-elapsed-time');
+    clearInterval(state.sosCountdownInterval);
+    state.sosCountdownInterval = setInterval(() => {
+        secs++;
+        if (timerEl) timerEl.textContent = `${secs}s`;
+    }, 1000);
+
+    openModal('sos-active-modal');
 }
 
 async function triggerEmergency(serviceName, phoneNumber) {
@@ -657,7 +1013,7 @@ function shareLocation(type) {
             .catch(() => showToast(link));
     } else {
         if (navigator.share) {
-            navigator.share({ title: 'My Live Location', url: link }).catch(() => { });
+            navigator.share({ title: 'My Live Location', url: link }).catch(() => {});
         } else {
             window.open(link, '_blank');
         }
@@ -667,16 +1023,11 @@ function shareLocation(type) {
 // ============================================================
 // Modal Helpers
 // ============================================================
-function openModal(id) {
-    document.getElementById(id)?.classList.add('active');
-}
-
-function closeModal(id) {
-    document.getElementById(id)?.classList.remove('active');
-}
+function openModal(id) { document.getElementById(id)?.classList.add('active'); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('active'); }
 
 // ============================================================
-// Toast Notification
+// Toast
 // ============================================================
 function showToast(msg) {
     let toast = document.getElementById('kavach-toast');
