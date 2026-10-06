@@ -63,9 +63,9 @@ body {
 
 #app-container {
     width: 100%;
-    max-width: 430px;
+    max-width: 480px;
     height: 100vh;
-    max-height: 900px;
+    height: 100dvh;
     background: var(--bg);
     position: relative;
     overflow: hidden;
@@ -74,11 +74,12 @@ body {
     border-radius: 0;
 }
 
-@media (min-width: 481px) {
+@media (min-width: 520px) {
     #app-container {
         border-radius: 36px;
         box-shadow: 0 32px 64px -8px rgba(0, 0, 0, 0.3);
         height: 92vh;
+        max-height: 880px;
     }
 }
 
